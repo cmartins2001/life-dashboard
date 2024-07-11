@@ -56,8 +56,13 @@ def main():
     # Create a dataframe:
     google_df = create_df(raw_data)
 
-    # Change the rating column to a float type:
+    # Change the quantitative columns to float or int types:
     google_df['rating'] = google_df['rating'].astype(float)
+    google_df['hrs_outside'] = pd.to_numeric(google_df['hrs_outside'], errors='coerce')
+    google_df['hrs_outside'] = google_df['hrs_outside'].fillna(0, inplace=False)
+
+    # Check data type of hours outside:
+    # print(type(google_df['hrs_outside'][0]))
 
     # Print head:
     print(google_df.head())
