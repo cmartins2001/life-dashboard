@@ -72,6 +72,10 @@ def main():
     # st.line_chart(google_df['rating'].astype(float))
     st.line_chart(data=google_df, x='date', y='rating')
 
+    # Bar chart of hours outside over time:
+    st.subheader("Hours Spent Outside")
+    st.bar_chart(data=google_df, x='date', y='hrs_outside')
+
     # Raw data table:
     st.subheader("Raw Data")
     st.write(google_df)
