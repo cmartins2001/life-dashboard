@@ -8,6 +8,7 @@ import pandas as pd
 import streamlit as st
 import gspread # for reading in Google sheets data
 from oauth2client.service_account import ServiceAccountCredentials
+import altair as alt
 
 # Google API credentials:
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -57,29 +58,53 @@ def main():
     google_df = create_df(raw_data)
 
     # Change the quantitative columns to float or int types:
+    google_df['rating'] = pd.to_numeric(google_df['rating'], errors='coerce')
     google_df['rating'] = google_df['rating'].astype(float)
     google_df['hrs_outside'] = pd.to_numeric(google_df['hrs_outside'], errors='coerce')
     google_df['hrs_outside'] = google_df['hrs_outside'].fillna(0, inplace=False)
 
-    # Check data type of hours outside:
-    # print(type(google_df['hrs_outside'][0]))
-
     # Print head:
-    print(google_df.head())
+    # print(google_df.head())
 
     ### START OF STREAMLIT EDITING ###
 
     # Create a title:
     st.title("Connor's Life Dashboard")
 
-    # Time series plot of daily rating:
-    st.subheader("Daily Rating")
-    # st.line_chart(google_df['rating'].astype(float))
-    st.line_chart(data=google_df, x='date', y='rating')
+    # Create streamlit column layout:
+    # col1, col2 = st.columns(2)
 
+    # with col1:
+        # Time series plot of daily rating:
+    st.subheader("Daily Rating")
+    # st.line_chart(data=google_df, x='date', y='rating')
+    rating_line = alt.Chart(google_df).mark_line(color='deepskyblue').encode(
+        x='date',
+        y='rating'
+    )
+    st.altair_chart(rating_line)
+
+    
+    # with col2:
     # Bar chart of hours outside over time:
     st.subheader("Hours Spent Outside")
-    st.bar_chart(data=google_df, x='date', y='hrs_outside')
+    # st.bar_chart(data=google_df, x='date', y='hrs_outside')
+    outside_bar = alt.Chart(google_df).mark_bar(color='lightsalmon').encode(
+        x='date',
+        y='hrs_outside'
+    )
+    st.altair_chart(outside_bar)
+
+    # Histogram of workouts by day of week:
+    st.subheader("Workouts by Day of Week")
+    # workout_hist = alt.Chart(google_df).mark_bar().encode(
+    #     alt.X("date"),
+    #     y='count()'
+    # )
+    ###NOTE: will probably need to create a count data frame using .agg() and then
+    # do the histogram from there ###
+    
+    st.divider()
 
     # Raw data table:
     st.subheader("Raw Data")
