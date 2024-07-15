@@ -46,6 +46,12 @@ def create_df(sheets_data):
     return (pd.DataFrame(sheets_data[1:], columns=sheets_data[0]))
 
 
+# Function that slices a dataframe based on an inputted date:
+def date_slice_df(df, min_date):
+    sliced_df = df[df['date'] >= min_date]
+    return sliced_df
+
+
 # Function that returns the mean of a column in a pandas dataframe:
 def get_mean(df, col_name):
     return (df[col_name].mean())
@@ -128,6 +134,14 @@ def main():
     # )
     # st.altair_chart(workout_hist)
     st.bar_chart(workout_count_df, x='day_of_week', y='workout_count')
+
+    # Scatterplot of rating versus hours spent outside:
+    st.subheader("Rating vs. Hours Outside")
+    rating_outside_scatter = alt.Chart(google_df).mark_point().encode(
+        x='hrs_outside',
+        y='rating'
+    )
+    st.altair_chart(rating_outside_scatter)
     
     st.divider()
 
