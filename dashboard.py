@@ -53,8 +53,37 @@ def date_slice_df(df, min_date):
 
 
 # Function that returns the mean of a column in a pandas dataframe:
-def get_mean(df, col_name):
+def get_mean(df, col_name : str):
     return (df[col_name].mean())
+
+
+# Function that generates a seven-day rolling average for a pandas DF column:
+def seven_day_avg(df, col_name : str):
+
+    # Retrieve the max date in the dataframe:
+    max_date = df['date'].max()
+
+    # Set the start date as 7 days before the max date:
+    start_date = max_date - pd.offsets.Day(7)
+
+    # Set the previous week's start date:
+    last_wks_date = start_date - pd.offsets.Day(7)
+
+    # Slice the dataframe for the most recent week:
+    this_wks_df = df.loc[(df['date'] >= start_date) & (df['date'] <= max_date)]
+
+    # Slice the dataframe for the previous week:
+    last_wks_df = df.loc[(df['date'] >= last_wks_date) & (df['date'] <= start_date)]
+
+    # Compute the two means:
+    this_wks_mean = get_mean(this_wks_df, col_name)
+    last_wks_mean = get_mean(last_wks_df, col_name)
+
+    # Compute the percent change between the two averages:
+    perc_change = ((this_wks_mean - last_wks_mean) / last_wks_mean) * 100
+
+    # Return the 7-day average and the percent change relative to the previous week:
+    return this_wks_mean, perc_change
 
 
 # Main function:
@@ -108,9 +137,14 @@ def main():
     col1, col2 = st.columns(2)
 
     with col1:
-        st.metric('Average Daily Rating', f"{get_mean(google_df, 'rating'):.2f}")
+        # st.metric('Average Daily Rating', f"{get_mean(google_df, 'rating'):.2f}")
+        
+        ### TESTING THE ROLLING AVERAGE FUNCTION BELOW ###
+        st.metric('7-Day Average Rating', f"{seven_day_avg(google_df, 'rating')[0]:.2f}", f"{seven_day_avg(google_df, 'rating')[1]:.2f}%")
+
     with col2:
-        st.metric('Hours Outside Per Day', f"{get_mean(google_df, 'hrs_outside'):.2f}")
+        # st.metric('Hours Outside Per Day', f"{get_mean(google_df, 'hrs_outside'):.2f}")
+        st.metric('7-Day Average Rating', f"{seven_day_avg(google_df, 'hrs_outside')[0]:.2f}", f"{seven_day_avg(google_df, 'hrs_outside')[1]:.2f}%")
     
     
     # Time series plot of daily rating:
