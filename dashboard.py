@@ -1,6 +1,6 @@
 '''
 Personal Life Dashboard with Streamlit
-Last Updated: 7/8/2024
+Last Updated: 7/22/2024
 '''
 
 # Libraries:
@@ -82,6 +82,13 @@ def main():
     google_df['workout_bool'] = pd.to_numeric(google_df['workout_bool'], errors='coerce')
     google_df['workout_bool'] = google_df['workout_bool'].fillna(0, inplace=False)
 
+    # Convert the date column to a pandas datetime variable:
+    google_df['date'] = pd.to_datetime(google_df['date'], errors='coerce')
+
+    # Check for any NaT values that were created due to parsing issues
+    if google_df['date'].isna().sum() > 0:
+        st.write(f"Warning: There are {google_df['date'].isna().sum()} invalid date entries that were converted to NaT")
+
     # Create a count dataframe for workouts by day of week visual:
     workout_df = google_df[['day_of_week', 'workout_bool']]
     workout_count_df = (workout_df
@@ -147,6 +154,10 @@ def main():
 
     # Raw data table:
     st.subheader("Raw Data")
+    # Display the date range for testing:
+    min_date = google_df['date'].min()
+    max_date = google_df['date'].max()
+    st.write(f"Date Range in DataFrame: {min_date} to {max_date}")
     st.write(google_df)
 
 
