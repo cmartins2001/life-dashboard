@@ -188,10 +188,6 @@ def main():
 
     # Raw data table:
     st.subheader("Raw Data")
-    # Display the date range for testing:
-    min_date = google_df['date'].min()
-    max_date = google_df['date'].max()
-    st.write(f"Date Range in DataFrame: {min_date} to {max_date}")
     st.write(google_df)
 
 
