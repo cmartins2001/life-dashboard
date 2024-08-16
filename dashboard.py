@@ -144,7 +144,7 @@ def main():
 
     with col2:
         # st.metric('Hours Outside Per Day', f"{get_mean(google_df, 'hrs_outside'):.2f}")
-        st.metric('7-Day Average Rating', f"{seven_day_avg(google_df, 'hrs_outside')[0]:.2f}", f"{seven_day_avg(google_df, 'hrs_outside')[1]:.2f}%")
+        st.metric('7-Day Avg Hrs Outside', f"{seven_day_avg(google_df, 'hrs_outside')[0]:.2f}", f"{seven_day_avg(google_df, 'hrs_outside')[1]:.2f}%")
     
     
     # Time series plot of daily rating:
