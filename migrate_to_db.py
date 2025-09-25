@@ -23,12 +23,27 @@ def fetch_notion_data(db_id : str) -> pd.DataFrame:
         )
         for page in query["results"]:
             props = page["properties"]
+
+            # safely extract date:
+            date_obj = props.get("date", {}).get("date", {})
+            date_value = date_obj.get("start") if date_obj else None
+
+            # safely extract weather:
+            weather_obj = props.get("weather", {}).get("rich_text", [{}])
+            if type(weather_obj) is not list or len(weather_obj) == 0:
+                weather_value = None
+            else:
+                weather_value = weather_obj[0]["text"]["content"]
+
+            # create a row of data to be added:
             row = {
                 "id": page["id"],  # Notion page ID for uniqueness
-                "date": props.get("Date", {}).get("date", {}).get("start"),
-                "mood": props.get("Mood (1-10)", {}).get("number", 0),
-                "exercise": props.get("Exercise", {}).get("checkbox", False),
-                # Add more properties here, e.g., "notes": props.get("Notes", {}).get("rich_text", [{}])[0].get("text", {}).get("content", "")
+                "date": date_value,
+                "rating": props.get("rating", {}).get("number", 0),
+                "workout_bool": props.get("workout_bool", {}).get("number", 0),
+                "hrs_outside": props.get("hrs_outside", {}).get("number", 0),
+                "weather": weather_value
+                # "weather": props.get("weather", {}).get("rich_text", [{}])[0].get("text", {}).get("content", "")
             }
             results.append(row)
         next_cursor = query.get("next_cursor")
@@ -38,25 +53,39 @@ def fetch_notion_data(db_id : str) -> pd.DataFrame:
 
 def main():
 
-    # Fetch data from daily log database:
-    df = fetch_notion_data(db_id=daily_log_id)
-    df["date"] = pd.to_datetime(df["date"])  # Clean dates
-    df["exercise"] = df["exercise"].astype(int)  # Convert bool to 0/1 for DB
+    # Fetch data from daily log database and clean columns:
+    df = (
+            fetch_notion_data(db_id=daily_log_id)
+            .assign(
+                date=lambda x: pd.to_datetime(x["date"]),
+                rating=lambda x: x["rating"].fillna(0).astype(float),
+                workout_bool=lambda x: x["workout_bool"].fillna(0).astype(int),
+                hrs_outside=lambda x: x["hrs_outside"].fillna(0).astype(float),
+                weather=lambda x: x["weather"].fillna(""),
+            )
+        )
 
     print(df.head())
 
     # Set-up / connect to duckdb:
-    # conn = duckdb.connect('connor_personal.duckdb')
+    conn = duckdb.connect('connor_personal.duckdb')
 
     # Create table if it doesn't exist:
-    # conn.execute('''
-    #     CREATE TABLE IF NOT EXISTS daily_log (
-    #         id TEXT PRIMARY KEY,
-    #         date DATE,
-    #         mood INTEGER,
-    #         exercise INTEGER
-    #     )
-    # ''')
+    conn.execute('DROP TABLE IF EXISTS daily_log;')
+    conn.execute('''
+        CREATE TABLE daily_log (
+            id TEXT PRIMARY KEY,
+            date DATE,
+            rating FLOAT,
+            workout_bool INTEGER,
+            hrs_outside FLOAT,
+            weather TEXT
+        )
+    ''')
+
+    conn.register("df_temp", df)
+    conn.execute("INSERT INTO daily_log SELECT * FROM df_temp;")
+    conn.close()
 
 
 if __name__ == '__main__':
