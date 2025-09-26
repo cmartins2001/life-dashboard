@@ -7,6 +7,7 @@ import os
 
 repo_dir = os.path.dirname(os.path.abspath(__file__))
 data_dir = os.path.join(repo_dir, 'data')
+local_data_dir = "C:/Users/cmart/databases"
 
 
 # Connect to Notion using the API key:
@@ -72,7 +73,10 @@ def main():
     print(df.head())
 
     # Set-up / connect to duckdb:
-    conn = duckdb.connect(os.path.join(data_dir, 'connor_personal.duckdb'))
+    db_path = os.path.join(local_data_dir, 'connor_personal.duckdb')
+    if not os.path.exists(local_data_dir):
+        os.makedirs(local_data_dir)
+    conn = duckdb.connect(db_path)
 
     # Create table if it doesn't exist:
     conn.execute('DROP TABLE IF EXISTS daily_log;')
