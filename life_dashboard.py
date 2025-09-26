@@ -12,16 +12,6 @@ def _():
 
 
 @app.cell
-def _():
-    # testing local DuckDB connection:
-    # conn = duckdb.connect("questionnaire.duckdb", read_only=True)
-    # df = conn.execute("SELECT * FROM entries ORDER BY date").fetchdf()
-    # conn.close()
-    # df["date"] = pd.to_datetime(df["date"], errors="coerce")
-    return
-
-
-@app.cell
 def _(duckdb):
     # DB CONNECTION:
     DATABASE_URL = "C:/Users/cmart/Documents/GitHub/life-dashboard/connor_personal.duckdb"
@@ -30,10 +20,13 @@ def _(duckdb):
 
 
 @app.cell
-def _(engine, mo):
+def _(daily_log, engine, mo):
     _df = mo.sql(
         f"""
-        -- SELECT * FROM daily_log LIMIT 100
+        SELECT *
+        	,YEAR(date) AS date_year
+            ,MONTH(date) AS date_month
+        FROM daily_log
         """,
         engine=engine
     )
