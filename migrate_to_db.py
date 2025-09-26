@@ -3,6 +3,10 @@
 import pandas as pd
 from notion_client import Client
 import duckdb
+import os
+
+repo_dir = os.path.dirname(os.path.abspath(__file__))
+data_dir = os.path.join(repo_dir, 'data')
 
 
 # Connect to Notion using the API key:
@@ -68,7 +72,7 @@ def main():
     print(df.head())
 
     # Set-up / connect to duckdb:
-    conn = duckdb.connect('connor_personal.duckdb')
+    conn = duckdb.connect(os.path.join(data_dir, 'connor_personal.duckdb'))
 
     # Create table if it doesn't exist:
     conn.execute('DROP TABLE IF EXISTS daily_log;')
