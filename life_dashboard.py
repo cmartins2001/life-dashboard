@@ -9,7 +9,8 @@ def _():
     import marimo as mo
     import duckdb
     import altair as alt
-    return duckdb, mo
+    import numpy as np
+    return duckdb, mo, np
 
 
 @app.cell
@@ -70,6 +71,24 @@ def _(engine, mo, transactions):
         engine=engine
     )
     return (trans_df,)
+
+
+@app.cell
+def _(np, trans_df):
+    # Define "essentials category":
+
+    trans_modified = (
+        trans_df
+        .assign(
+            essential_ind=lambda x: np.where(x.category.isin([
+                'Car', 'Healthcare', 'Education', 'Transit'
+            ]), 'Essential', 'Non-Essential')
+        )
+        .query("amount>=0")
+    )
+
+    trans_modified.groupby(['date_year', 'date_month', 'essential_ind'], as_index=False)['amount'].sum()
+    return
 
 
 @app.cell
