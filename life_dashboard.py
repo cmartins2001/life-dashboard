@@ -101,6 +101,18 @@ def _(np, pd, trans_df):
 
 @app.cell
 def _(mo):
+    mo.md(r"""### Monthly and Weekly Essential vs. Non-Essential Spend Trend""")
+    return
+
+
+@app.cell
+def _():
+    # ...
+    return
+
+
+@app.cell
+def _(mo):
     mo.md(r"""### Monthly Spend by Category:""")
     return
 
@@ -233,7 +245,7 @@ def _(date, mo, trans_modified):
         label="This Week's Essentials Spend:",
         value=f'${curr_essentials_spend:.2f}',
         caption=f'{_diff} from YTD Median of ${avg_essentials_spend:.2f}'
-    
+
     )
     return before_this_week, this_week
 
@@ -266,7 +278,7 @@ def _(before_this_week, mo, this_week):
         label="This Week's NON-Essentials Spend:",
         value=f'${curr_nonessentials_spend:.2f}',
         caption=f'{_diff} from YTD Median of ${avg_nonessentials_spend:.2f}'
-    
+
     )
     return
 
