@@ -20,6 +20,12 @@ def _():
 
 
 @app.cell
+def _(mo):
+    mo.md(r"""### Connect to the DuckDB Database""")
+    return
+
+
+@app.cell
 def _(duckdb):
     # DB CONNECTION:
     # DATABASE_URL = "C:/Users/cmart/Documents/GitHub/life-dashboard/connor_personal.duckdb"
@@ -29,13 +35,8 @@ def _(duckdb):
 
 
 @app.cell
-def _(engine, mo, transactions):
-    _df = mo.sql(
-        f"""
-        SELECT * FROM transactions LIMIT 100
-        """,
-        engine=engine
-    )
+def _(mo):
+    mo.md(r"""### Read Daily Log Data""")
     return
 
 
@@ -50,11 +51,78 @@ def _(daily_log, engine, mo):
         """,
         engine=engine
     )
-    return
+    return (daily_log_df,)
 
 
 @app.cell
-def _():
+def _(alt, daily_log_df, pd):
+    monthly_log = (
+        daily_log_df
+        .astype({'date_year':'str', 'date_month':'str'})
+        .assign(date_month_nm=lambda df_: pd.to_datetime(df_['date']).dt.strftime("%m"))
+        .groupby(['date_year', 'date_month_nm'], as_index=False, observed=True)
+        .agg(
+            avg_rating=('rating', 'mean'),
+            workout_count=('workout_bool', 'sum')
+        )
+    )
+
+    # plot monthly avg. rating:
+    avg_rating_chart = (
+        alt.Chart(monthly_log)
+        .mark_line()
+        .encode(
+            x=alt.X(field='date_month_nm', type='nominal'),
+            y=alt.Y(field='avg_rating', type='quantitative', aggregate='mean'),
+            color=alt.Color(field='date_year', type='nominal'),
+            tooltip=[
+                alt.Tooltip(field='date_month_nm'),
+                alt.Tooltip(field='avg_rating', aggregate='mean', format=',.2f'),
+                alt.Tooltip(field='date_year')
+            ]
+        )
+        .properties(
+            height=290,
+            width='container',
+            config={
+                'axis': {
+                    'grid': False
+                }
+            }
+        )
+    )
+
+    # plot monthly workout count:
+    workout_count_chart = (
+        alt.Chart(monthly_log)
+        .mark_bar()
+        .encode(
+            x=alt.X(field='date_month_nm', type='nominal'),
+            y=alt.Y(field='workout_bool', type='quantitative', aggregate='sum'),
+            color=alt.Color(field='date_year', type='nominal'),
+            xOffset='date_year',
+            tooltip=[
+                alt.Tooltip(field='date_month_nm'),
+                alt.Tooltip(field='workout_bool', aggregate='sum', format=',.2f'),
+                alt.Tooltip(field='date_year')
+            ]
+        )
+        .properties(
+            height=290,
+            width='container',
+            config={
+                'axis': {
+                    'grid': False
+                }
+            }
+        )
+    )
+    return (avg_rating_chart,)
+
+
+@app.cell
+def _(avg_rating_chart):
+    avg_rating_chart
     return
 
 
