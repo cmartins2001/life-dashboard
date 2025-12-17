@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.16.2"
+__generated_with = "0.18.4"
 app = marimo.App(
     width="medium",
     layout_file="layouts/life_dashboard.grid.json",
@@ -21,7 +21,9 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md(r"""### Connect to the DuckDB Database""")
+    mo.md(r"""
+    ### Connect to the DuckDB Database
+    """)
     return
 
 
@@ -36,7 +38,9 @@ def _(duckdb):
 
 @app.cell
 def _(mo):
-    mo.md(r"""### Read Daily Log Data""")
+    mo.md(r"""
+    ### Read Daily Log Data
+    """)
     return
 
 
@@ -55,12 +59,123 @@ def _(daily_log, engine, mo):
 
 
 @app.cell
-def _(alt, daily_log_df, pd):
+def _(alt, daily_log_df, mo, pd):
+    ### WEEKLY log metrics:
+    weekly_log = (
+        daily_log_df
+
+            # Use ISO week and year to avoid confusion with end dates:
+        .astype({'date_year':'str', 'date_month':'str'})
+        .assign(
+            iso_yr=lambda x:pd.to_datetime(x.date).dt.isocalendar().year,
+            iso_week=lambda x: pd.to_datetime(x.date).dt.isocalendar().week
+        
+        )
+        .groupby(['iso_yr', 'iso_week'], as_index=False, observed=True)
+        .agg(
+            avg_rating=('rating', 'mean'),
+            workout_count=('workout_bool', 'sum')
+        )
+    )
+
+    # plot weekly avg. rating:
+    weekly_avg_rating_chart = (
+        alt.Chart(weekly_log)
+        .mark_line()
+        .encode(
+            x=alt.X(field='iso_week', type='nominal'),
+            y=alt.Y(field='avg_rating', type='quantitative', aggregate='mean'),
+            color=alt.Color(field='iso_yr', type='nominal'),
+            tooltip=[
+                alt.Tooltip(field='iso_week'),
+                alt.Tooltip(field='avg_rating', aggregate='mean', format=',.2f'),
+                alt.Tooltip(field='iso_yr')
+            ]
+        )
+        .properties(
+            height=290,
+            width='container',
+            config={
+                'axis': {
+                    'grid': False
+                }
+            }
+        )
+    )
+
+    # plot weekly workout count:
+    weekly_workout_count_chart = (
+        alt.Chart(weekly_log)
+        .mark_line()
+        .encode(
+            x=alt.X(field='iso_week', type='nominal'),
+            y=alt.Y(field='workout_count', type='quantitative', aggregate='sum'),
+            color=alt.Color(field='iso_yr', type='nominal'),
+            xOffset='iso_yr',
+            tooltip=[
+                alt.Tooltip(field='iso_week'),
+                alt.Tooltip(field='workout_count', aggregate='sum', format=',.2f'),
+                alt.Tooltip(field='iso_yr')
+            ]
+        )
+        .properties(
+            height=290,
+            width='container',
+            config={
+                'axis': {
+                    'grid': False
+                }
+            }
+        )
+    )
+
+    # Save charts to a display list:
+    weekly_trends = mo.vstack([
+        weekly_avg_rating_chart,
+        weekly_workout_count_chart
+    ])
+    return (weekly_trends,)
+
+
+@app.cell
+def _(mo, monthly_log):
+    ### CURRENT vs. average monthly workout count metric:
+    current_month_workout_count = (
+        monthly_log.loc[monthly_log['year_month']=='2025-12']
+        ['workout_count'].sum()
+    )
+
+    prior_months_workout_count = (
+        monthly_log.loc[monthly_log['year_month']<='2025-12']
+        ['workout_count'].median()
+    )
+
+    wrkt_diff = current_month_workout_count - prior_months_workout_count
+    if wrkt_diff < 0:
+        _diff = 'decrease'
+    elif wrkt_diff > 0:
+        _diff = 'increase'
+
+    mo.stat(
+        label="Current Monthly Workout Count:",
+        value=f'{current_month_workout_count:}',
+        caption=f'from YTD Median of {prior_months_workout_count:.1f}',
+        direction=_diff
+    )
+    return
+
+
+@app.cell
+def _(alt, daily_log_df, mo, pd):
+    ### MONTHLY log metrics:
     monthly_log = (
         daily_log_df
         .astype({'date_year':'str', 'date_month':'str'})
-        .assign(date_month_nm=lambda df_: pd.to_datetime(df_['date']).dt.strftime("%m"))
-        .groupby(['date_year', 'date_month_nm'], as_index=False, observed=True)
+        .assign(
+            date_month_nm=lambda df_: pd.to_datetime(df_['date']).dt.strftime("%m"),
+            year_month=lambda df_: pd.to_datetime(df_['date']).dt.strftime("%Y-%m"),
+        )
+        .groupby(['date_year', 'year_month', 'date_month_nm', 'date_month'], as_index=False, observed=True)
         .agg(
             avg_rating=('rating', 'mean'),
             workout_count=('workout_bool', 'sum')
@@ -95,15 +210,15 @@ def _(alt, daily_log_df, pd):
     # plot monthly workout count:
     workout_count_chart = (
         alt.Chart(monthly_log)
-        .mark_bar()
+        .mark_line()
         .encode(
             x=alt.X(field='date_month_nm', type='nominal'),
-            y=alt.Y(field='workout_bool', type='quantitative', aggregate='sum'),
+            y=alt.Y(field='workout_count', type='quantitative', aggregate='sum'),
             color=alt.Color(field='date_year', type='nominal'),
             xOffset='date_year',
             tooltip=[
                 alt.Tooltip(field='date_month_nm'),
-                alt.Tooltip(field='workout_bool', aggregate='sum', format=',.2f'),
+                alt.Tooltip(field='workout_count', aggregate='sum', format=',.2f'),
                 alt.Tooltip(field='date_year')
             ]
         )
@@ -117,18 +232,27 @@ def _(alt, daily_log_df, pd):
             }
         )
     )
-    return (avg_rating_chart,)
+
+    # Save charts to a display list:
+    monthly_trends = mo.vstack([
+        avg_rating_chart,
+        workout_count_chart
+    ])
+    return monthly_log, monthly_trends
 
 
 @app.cell
-def _(avg_rating_chart):
-    avg_rating_chart
+def _(mo, monthly_trends, weekly_trends):
+    # Use marimo tab to choose which trend charts to show:
+    mo.ui.tabs({"Weekly Trends": weekly_trends, "Monthly Trends": monthly_trends})
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""### Load Transactions Data""")
+    mo.md(r"""
+    ### Load Transactions Data
+    """)
     return
 
 
@@ -169,19 +293,17 @@ def _(np, pd, trans_df):
 
 @app.cell
 def _(mo):
-    mo.md(r"""### Monthly and Weekly Essential vs. Non-Essential Spend Trend""")
-    return
-
-
-@app.cell
-def _():
-    # ...
+    mo.md(r"""
+    ### Monthly and Weekly Essential vs. Non-Essential Spend Trend
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""### Monthly Spend by Category:""")
+    mo.md(r"""
+    ### Monthly Spend by Category:
+    """)
     return
 
 
@@ -258,14 +380,17 @@ def _(alt, cat_df, category, plot_freq):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""### This Week's Spending Stats:""")
+    mo.md(r"""
+    ### This Week's Spending Stats:
+    """)
     return
 
 
 @app.cell
-def _(date, mo, trans_modified):
+def _(date, trans_modified):
     # Define relevant variables:
     current_yr = date.today().year
+    current_month = date.today().month
     current_week = date.today().isocalendar().week
 
     # Get transactions from current week:
@@ -285,69 +410,54 @@ def _(date, mo, trans_modified):
             & (trans_modified['week'] < current_week)
         ]
     )
-
-    # ESSENTIALS weeekly spend metric:
-    curr_essentials_spend = (
-        this_week
-        .loc[this_week['essential_ind']=='Essential']
-        ['amount'].sum()
-    )
-
-    avg_essentials_spend = (
-        before_this_week
-        .loc[before_this_week['essential_ind']=='Essential']
-        .groupby('week', as_index=False)
-        .agg({'amount' : 'sum'})
-        ['amount'].median()
-    )
-
-    ess_beat_miss = curr_essentials_spend - avg_essentials_spend
-    if ess_beat_miss < 0:
-        _diff = 'Down'
-    elif ess_beat_miss > 0:
-        _diff = 'Up'
-    else:
-        _diff = 'No Different'
-
-    mo.stat(
-        label="This Week's Essentials Spend:",
-        value=f'${curr_essentials_spend:.2f}',
-        caption=f'{_diff} from YTD Median of ${avg_essentials_spend:.2f}'
-
-    )
     return before_this_week, this_week
 
 
 @app.cell
 def _(before_this_week, mo, this_week):
-    curr_nonessentials_spend = (
-        this_week
-        .loc[this_week['essential_ind']!='Essential']
-        ['amount'].sum()
-    )
+    ### DISPLAY CURRENT WEEK SPENDING VS. AVG. WEEK METRICS:
 
-    avg_nonessentials_spend = (
-        before_this_week
-        .loc[before_this_week['essential_ind']!='Essential']
-        .groupby('week', as_index=False)
-        .agg({'amount' : 'sum'})
-        ['amount'].median()
-    )
+    def week_comparison_metric(curr_week_df, prior_weeks_df, essentials_tag : str, label : str):
+    
+        # calc current week total:
+        curr_wk_sum = curr_week_df.loc[curr_week_df['essential_ind']==essentials_tag]['amount'].sum()
+    
+        # calc avg. weekly total of all prior weeks:
+        prior_wks_sum = (
+            prior_weeks_df
+            .loc[prior_weeks_df['essential_ind']==essentials_tag]
+            .groupby('week', as_index=False)
+            .agg({'amount' : 'sum'})
+                ['amount'].median()
+        )
 
-    noness_beat_miss = curr_nonessentials_spend - avg_nonessentials_spend
-    if noness_beat_miss < 0:
-        _diff = 'Down'
-    elif noness_beat_miss > 0:
-        _diff = 'Up'
-    else:
-        _diff = 'No Different'
+        # determine direction of difference:
+        beat_miss = curr_wk_sum - prior_wks_sum
+        if beat_miss < 0:
+            diff = 'Down'
+        elif beat_miss > 0:
+            diff = 'Up'
+        else:
+            diff = 'No Different'
 
-    mo.stat(
-        label="This Week's NON-Essentials Spend:",
-        value=f'${curr_nonessentials_spend:.2f}',
-        caption=f'{_diff} from YTD Median of ${avg_nonessentials_spend:.2f}'
+        return mo.stat(
+            label=label,
+            value=f'${curr_wk_sum:.2f}',
+            caption=f'{diff} from YTD Median of ${prior_wks_sum:.2f}'
+        )
 
-    )
+
+    # clean_labels = ["This Week's NON-Essentials Spend:", "This Week's Essentials Spend:"]
+    ess_tags = ["Non-Essential", "Essential"]
+    essential_compare_stats = [week_comparison_metric(
+        this_week,
+        before_this_week,
+        essentials_tag=tag,
+        label=f"This Week's {tag} Spend:"
+    ) for tag in ess_tags]
+
+    # display the metrics in marimo:
+    mo.hstack(essential_compare_stats)
     return
 
 
